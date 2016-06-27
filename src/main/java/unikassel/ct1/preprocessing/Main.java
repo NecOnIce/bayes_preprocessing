@@ -20,27 +20,12 @@ public class Main {
     public static void main(String[] args) throws FileNotFoundException {
 
         InputStream in = new FileInputStream("./src/main/resources/p-1_2015-01-06_12-03-39_0_formatted.csv");
+        String timestampHeader = "Timestamp";
+        String labelHeader = "label";
 
-        CT1CSVReader reader = new CT1CSVReader(in);
-        CT1CSVReader.CSV csv = reader.read();
+        CT1CSVReader reader = new CT1CSVReader(in, timestampHeader, labelHeader);
+        DataSet dataSet = reader.read();
 
-        List<String> headers = csv.getHeaders();
-        LOG.info("Headers: ");
-        String hString = "";
-        for (String s : headers) {
-            hString += s + ",";
-        }
-        LOG.info(hString);
-
-        List<List<Double>> values = csv.getValues();
-        LOG.info("Values:");
-        for (List<Double> val : values) {
-
-            String v = "";
-            for (Double d : val) {
-                v += d.toString() + ",";
-            }
-            LOG.info(v);
-        }
+        System.out.println();
     }
 }
