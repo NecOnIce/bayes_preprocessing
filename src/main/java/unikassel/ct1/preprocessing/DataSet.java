@@ -94,4 +94,19 @@ public class DataSet implements Iterable<Sample> {
     public Stream<Sample> parallelStream() {
         return samples.parallelStream();
     }
+
+    /**
+     * get the id of the specified header.
+     * Note: use this function rarely, because of performance issues
+     *
+     * @param header The name of the Header
+     * @return The id of the header
+     */
+    public int getHeaderID(String header) {
+        return this.headers.indexOf(header);
+    }
+
+    public String getTimestampHeader() {
+        return timestampHeader;
+    }
 }

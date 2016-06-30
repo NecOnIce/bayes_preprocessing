@@ -11,9 +11,9 @@ package unikassel.ct1.preprocessing;
  */
 public abstract class Attribute<T> {
 
-    private int id;
-    private T value;
-    private Sample sample;
+    protected int id;
+    protected T value;
+    protected Sample sample;
 
     /**
      * Constructs a new Attribute
@@ -45,6 +45,17 @@ public abstract class Attribute<T> {
     protected abstract T convertValue(String valueAsString);
 
     /**
+     * converts the value of this Attribute into a String.
+     *
+     * @return the Value as String
+     */
+    protected abstract String convertToString();
+
+    public T getValue() {
+        return value;
+    }
+
+    /**
      * Default Implementation for all values
      */
     public static class DoubleAttribute extends  Attribute<Double> {
@@ -56,6 +67,11 @@ public abstract class Attribute<T> {
         @Override
         protected Double convertValue(String valueAsString) {
             return Double.parseDouble(valueAsString);
+        }
+
+        @Override
+        protected String convertToString() {
+            return String.valueOf(this.value);
         }
     }
 
@@ -72,6 +88,11 @@ public abstract class Attribute<T> {
         protected Double convertValue(String valueAsString) {
             return Double.parseDouble(valueAsString);
         }
+
+        @Override
+        protected String convertToString() {
+            return String.valueOf(this.value);
+        }
     }
 
     /**
@@ -86,6 +107,11 @@ public abstract class Attribute<T> {
         @Override
         protected String convertValue(String valueAsString) {
             return valueAsString;
+        }
+
+        @Override
+        protected String convertToString() {
+            return this.value;
         }
     }
 }

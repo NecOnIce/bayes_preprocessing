@@ -3,12 +3,10 @@ package unikassel.ct1.preprocessing;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
-import java.util.DoubleSummaryStatistics;
-import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * @author Jonas Scherbaum
@@ -26,6 +24,30 @@ public class Main {
         CT1CSVReader reader = new CT1CSVReader(in, timestampHeader, labelHeader);
         DataSet dataSet = reader.read();
 
-        System.out.println();
+        // determine frequency
+        float frequency = 0;
+        double firstValue = 0;
+        double filterParam = 50.0/18.0;
+        int timestampID = dataSet.getHeaderID(timestampHeader);
+        for (Sample sample : dataSet) {
+
+            Attribute.TimestampAttribute timestamp = (Attribute.TimestampAttribute) sample.getAttribute(timestampID);
+
+            int test = (int) (sample.getId() % filterParam);
+            LOG.debug(""+test);
+            if (test == 0) {
+                continue;
+            }
+            if (firstValue == 0) {
+                firstValue = timestamp.getValue();
+            } else if ((timestamp.getValue() - firstValue) > 5) {
+                break;
+            }
+            frequency++;
+        }
+
+        frequency /= 5;
+
+        LOG.info("The freuqency is: " + frequency);
     }
 }

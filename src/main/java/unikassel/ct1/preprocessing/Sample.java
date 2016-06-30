@@ -1,5 +1,7 @@
 package unikassel.ct1.preprocessing;
 
+import org.w3c.dom.Attr;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -54,5 +56,13 @@ public class Sample implements Iterable<Attribute> {
 
     public Stream<Attribute> parallelStream() {
         return attributes.parallelStream();
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public Attribute getAttribute(int index) {
+        return this.attributes.get(index);
     }
 }
