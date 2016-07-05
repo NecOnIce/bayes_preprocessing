@@ -55,7 +55,7 @@ public class CT1CSVReader {
             // skip if line empty
             if (line == null || line.equals("")) {
 
-                LOG.debug("Empty line skipped.");
+                //LOG.debug("Empty line skipped.");
                 continue;
             }
 
@@ -65,14 +65,14 @@ public class CT1CSVReader {
                 line = line.replaceFirst("#->", "");
                 String[] headers = line.split(",");
                 dataSet = new DataSet(this.labelHeader, this.timestampHeader, headers);
-                LOG.debug("Header read.");
+                //LOG.debug("Header read.");
                 continue;
             }
 
             // first skipp the leading comments
             if (line.startsWith("#")) {
 
-                LOG.debug("Comment skipped.");
+                //LOG.debug("Comment skipped.");
                 continue;
             }
 
@@ -81,9 +81,9 @@ public class CT1CSVReader {
 
                 String[] values = line.split(",");
                 dataSet.addValues(values);
-                LOG.debug("Raw of Values read.");
+                //LOG.debug("Raw of Values read.");
             } else {
-                LOG.warn("Read values, but got no headers before. This will result in missing values inside the DataSet.");
+                //LOG.warn("Read values, but got no headers before. This will result in missing values inside the DataSet.");
             }
         }
 
