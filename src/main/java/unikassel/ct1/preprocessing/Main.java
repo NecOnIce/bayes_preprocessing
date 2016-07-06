@@ -14,17 +14,16 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.stream.Collectors;
 
 /**
  * @author Jonas Scherbaum
  */
 public class Main {
 
-		//mallo
+		//Franck
 		static FastVector      atts1;
 		static Instances       data;
-		static double[]        vals;
+		static double []        vals;
 
 
     private static final Logger LOG = LoggerFactory.getLogger(Main.class);
@@ -65,44 +64,45 @@ public class Main {
         LOG.info("The freuqency is: " + frequency);
 
 
-        //Franck determine frequency
+        //Franck
 
-        atts1 = new FastVector();
-        String str = "";
+      //##########################################################
+      //       Verbesserte Variante
+      //##########################################################
 
-        for (Sample sample : dataSet) {
+      // 1. set up attributes
+      atts1 = new FastVector();
 
-        	for(unikassel.ct1.preprocessing.Attribute attr : sample){
-        		if (attr instanceof unikassel.ct1.preprocessing.Attribute.DoubleAttribute){
+      // - attributes space
+      for (String s: dataSet.getHeaders()) {
+    	  if(s.equals("label"))
+    		  atts1.addElement(new Attribute(s, (FastVector) null));
+    	  else
+    		  atts1.addElement(new Attribute(s));
+      }
 
-        			str = attr.getValue().toString();
+      //2. create Instances object
+      data = new Instances("MyRelation", atts1, 0);
 
-        			str = attr.convertToString();
-        			System.out.println("-----------DoubleAttribute---------------");
-            		System.out.println(str);
-            		atts1.addElement(new Attribute(str));
-        		}
-        		if (attr instanceof unikassel.ct1.preprocessing.Attribute.LabelAttribute){
-        			//LabelAttribute
-        			str = attr.convertToString();
-        			System.out.println("-----------LabelAttribute---------------");
-            		System.out.println(str);
-            		atts1.addElement(new Attribute(str, (FastVector) null));
-        		}
-        		if (attr instanceof unikassel.ct1.preprocessing.Attribute.TimestampAttribute){
-        			//TimestampAttribute
-        			str = attr.convertToString();
-        			System.out.println("-----------TimestampAttribute---------------");
-            		System.out.println(str);
-            		atts1.addElement(new Attribute(str));
-        		}
+      //3. fill Data
+       for (Sample sam : dataSet){
 
+        	vals = new double[data.numAttributes()];
+
+        	for(int j = 0; j <= data.numAttributes()-1; j++){
+        		if (sam.getAttribute(j) instanceof unikassel.ct1.preprocessing.Attribute.LabelAttribute)
+        			{
+        				String st = sam.getAttribute(j).getValue().toString();
+        				vals[j] = data.attribute(j).addStringValue(st);
+        			}
+        		else
+        			vals[j] = (Double) sam.getAttribute(j).getValue();
         	}
+        	//write to data instance
+            data.add(new Instance(1.0,vals));
         }
 
-
-        data.add(new Instance(1.0, vals));
-
+        // 4. output data
         //System.out.println(data);
 
         ArffSaver saver = new ArffSaver();
@@ -114,6 +114,5 @@ public class Main {
            // TODO Auto-generated catch block
            e.printStackTrace();
        }
-        //########################################################################
     }
 }
