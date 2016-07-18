@@ -1,9 +1,9 @@
 package unikassel.ct1.preprocessing;
 
+import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.util.Arrays;
-import java.util.Comparator;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -21,11 +21,13 @@ public class PreProcessor {
 
     /**
      * the freuqency of the DataSet to pre process
+     * e.g. 32hz -> 32
      */
     private float sourceFrequency;
 
     /**
      * the frequency to use for the pre processing
+     * e.g. 32hz -> 32
      */
     private float targetFrequency;
 
@@ -51,6 +53,12 @@ public class PreProcessor {
      */
     private double frequencyFilterParam;
 
+    private Map<Integer, List<SlidingWindow>> attributeToWindowsMap = new HashMap<>();
+
+    private Map<String, SlidingWindow> featureHeaderToWindowMap = new HashMap<>();
+
+    private DataSet featureDataSet;
+
     /**
      * Constructs and initializes the PreProcessor.
      * This includes:
@@ -59,10 +67,78 @@ public class PreProcessor {
      *
      * @param dataSet the DataSet to pre process
      */
-    public PreProcessor(DataSet dataSet) {
+    public PreProcessor(DataSet dataSet, float overlapping, float windowSize) {
         this.dataSet = dataSet;
         determineCurrentFrequency();
         this.targetFrequency = sourceFrequency;
+        this.overlapping = overlapping;
+        this.windowSize = windowSize;
+
+        // get the headers from the source DataSet and construct the Features DataSet
+        List<String> sourceHeaders = this.dataSet.getHeaders();
+        List<String> newHeaders = new ArrayList<>();
+
+        int windowElements = (int)(this.windowSize*this.targetFrequency);
+
+        sourceHeaders.forEach((header) -> {
+
+            // timestamp is the leading header
+            if (header.equals(dataSet.getTimestampHeader())) {
+                newHeaders.add(0, header);
+                Feature<Double> timeStampFeature = new TimestampFeature();
+                SlidingWindow<Double> slidingWindow =
+                        new SlidingWindow<Double>(windowElements, this.overlapping, timeStampFeature);
+                attributeToWindowsMap.putIfAbsent(dataSet.getHeaderID(header),
+                        Collections.singletonList(slidingWindow));
+                featureHeaderToWindowMap.put(header, slidingWindow);
+                return;
+            }
+
+            // label is the second header
+            if (header.equals(dataSet.getLabelHeader())) {
+                newHeaders.add(1, header);
+                Feature<String> labelFeature = new LabelFeature();
+                SlidingWindow<String> slidingWindow =
+                        new SlidingWindow<>(windowElements, this.overlapping, labelFeature);
+                attributeToWindowsMap.putIfAbsent(dataSet.getHeaderID(header),
+                        Collections.singletonList(slidingWindow));
+                featureHeaderToWindowMap.put(header, slidingWindow);
+                return;
+            }
+
+            // for each original header create for each Feature a new header
+            String meanHeader = header + "_MEAN";
+            String varianceHeader = header + "_VARIANCE";
+            String rangeHeader = header + "_RANGE";
+            newHeaders.add(meanHeader);
+            newHeaders.add(varianceHeader);
+            newHeaders.add(rangeHeader);
+
+            Feature<Double> meanFeature = new MeanFeature();
+            Feature<Double> varianceFeature = new VarianceFeature();
+            Feature<Double> rangeFeature = new RangeFeature();
+
+            List<SlidingWindow> slidingWindows = new ArrayList<>();
+
+            SlidingWindow<Double> meanWindow = new SlidingWindow<>(windowElements, this.overlapping,
+                    meanFeature);
+            SlidingWindow<Double> varianceWindow = new SlidingWindow<>(windowElements,
+                    this.overlapping, varianceFeature);
+            SlidingWindow<Double> rangeWindow = new SlidingWindow<>(windowElements, this.overlapping,
+                    rangeFeature);
+
+            slidingWindows.add(meanWindow);
+            slidingWindows.add(varianceWindow);
+            slidingWindows.add(rangeWindow);
+
+            attributeToWindowsMap.putIfAbsent(dataSet.getHeaderID(header), slidingWindows);
+            featureHeaderToWindowMap.put(meanHeader, meanWindow);
+            featureHeaderToWindowMap.put(varianceHeader, varianceWindow);
+            featureHeaderToWindowMap.put(rangeHeader, rangeWindow);
+        });
+
+        this.featureDataSet = new DataSet(dataSet.getLabelHeader(), dataSet.getTimestampHeader(),
+                newHeaders.toArray(new String[0]));
     }
 
     /**
@@ -100,14 +176,49 @@ public class PreProcessor {
         // begin the preprocessing by iterating over all samples
         for (Sample sample : this.dataSet) {
 
+            boolean windowsFull = true;
             // filter out samples according to the target frequency
             if (filterFrequency(sample)) {
                 continue;
             }
 
-            // filling the sliding window
+            // filling the sliding windows
+            for (Attribute att : sample) {
 
-            
+                List<SlidingWindow> windows = attributeToWindowsMap.get(att.id);
+                for (SlidingWindow window : windows) {
+                    windowsFull &= window.addAttribute(att);
+                }
+            }
+
+            if (windowsFull) {
+
+                int sampleIndex = this.featureDataSet.getSampleCount();
+                Sample featureSample = new Sample(sampleIndex, this.featureDataSet);
+                List<String> headers = this.featureDataSet.getHeaders();
+                for (int i = 0; i < headers.size(); i++) {
+                    String header = headers.get(i);
+                    SlidingWindow window = this.featureHeaderToWindowMap.get(header);
+                    Object featureValue = window.calculateFeatureValue();
+
+                    if (header.equals(this.featureDataSet.getTimestampHeader())) {
+                        Attribute timestampAttribute = new Attribute.TimestampAttribute(i,
+                                String.valueOf(featureValue));
+                        featureSample.addAttribute(i, timestampAttribute);
+                    } else if (header.equals(this.featureDataSet.getLabelHeader())) {
+                        Attribute labelAttribute = new Attribute.LabelAttribute(i, String.valueOf(featureValue));
+                        featureSample.addAttribute(i, labelAttribute);
+                    } else {
+                        Attribute attribute = new Attribute.DoubleAttribute(i, String.valueOf(featureValue));
+                        featureSample.addAttribute(i, attribute);
+                    }
+
+                    window.clearWindow();
+                }
+
+                this.featureDataSet.addSample(sampleIndex, featureSample);
+
+            }
         }
 
     }
@@ -153,5 +264,9 @@ public class PreProcessor {
 
     public void setOverlapping(float overlapping) {
         this.overlapping = overlapping;
+    }
+
+    public DataSet getFeatureDataSet() {
+        return featureDataSet;
     }
 }

@@ -10,6 +10,11 @@ import weka.core.Instances;
 import weka.core.converters.ArffSaver;
 
 import java.io.*;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * @author Jonas Scherbaum
@@ -25,48 +30,58 @@ public class Main {
 
     private static final Logger LOG = LoggerFactory.getLogger(Main.class);
 
-    public static void main(String[] args) throws FileNotFoundException {
+    public static void main(String[] args) throws IOException {
 
-        InputStream in = new FileInputStream("./src/main/resources/p-1_2015-01-06_12-03-39_0_formatted.csv");
+        InputStream in = new FileInputStream("./src/main/resources/source/p-5_2015-01-08_10-18-57_0_formatted.csv");
         String timestampHeader = "Timestamp";
         String labelHeader = "label";
 
         CT1CSVReader reader = new CT1CSVReader(in, timestampHeader, labelHeader);
         DataSet dataSet = reader.read();
 
-        // determine frequency
-        float frequency = 0;
-        double firstValue = 0;
-        double filterParam = 50.0/18.0;
-        int timestampID = dataSet.getHeaderID(timestampHeader);
-        for (Sample sample : dataSet) {
+        PreProcessor preProcessor = new PreProcessor(dataSet, 0.25f, 1.0f);
+        preProcessor.preprocess();
+        DataSet featureDataSet = preProcessor.getFeatureDataSet();
 
-        	unikassel.ct1.preprocessing.Attribute.TimestampAttribute timestamp = (unikassel.ct1.preprocessing.Attribute.TimestampAttribute) sample.getAttribute(timestampID);
+        File outputFile = new File("./src/main/resources/features.csv");
+        Charset charset = Charset.forName("UTF-8");
+        BufferedWriter writer = Files.newBufferedWriter(outputFile.toPath(), charset);
 
-            int test = (int) (sample.getId() % filterParam);
-            LOG.debug(""+test);
-            if (test == 0) {
-                continue;
+        String columnSeperator = ",";
+        List<String> headers = featureDataSet.getHeaders();
+        for (int i = 0; i < headers.size(); i++) {
+            String header = headers.get(i);
+            writer.write(header, 0, header.length());
+            if (i < (headers.size()-1)) {
+                writer.write(columnSeperator, 0, columnSeperator.length());
             }
-            if (firstValue == 0) {
-                firstValue = timestamp.getValue();
-            } else if ((timestamp.getValue() - firstValue) > 5) {
-                break;
+        }
+        writer.newLine();
+
+        Iterator<Sample> itSample = featureDataSet.iterator();
+        while (itSample.hasNext()) {
+
+            Sample sample = itSample.next();
+            Iterator<unikassel.ct1.preprocessing.Attribute> it = sample.iterator();
+            while (it.hasNext()) {
+                unikassel.ct1.preprocessing.Attribute attribute = it.next();
+                String attributeValue = attribute.convertToString();
+                writer.write(attributeValue, 0, attributeValue.length());
+
+                if (it.hasNext()) {
+                    writer.write(columnSeperator, 0, columnSeperator.length());
+                }
             }
-            frequency++;
+            if (itSample.hasNext()) {
+                writer.newLine();
+            }
         }
 
-        frequency /= 5;
-
-        LOG.info("The freuqency is: " + frequency);
+        writer.flush();
+        writer.close();
 
 
         //Franck determine frequency
-
-
-
-
-
         String arffOutput;
 
         //generate the .arff-File about the dataSet
@@ -80,8 +95,6 @@ public class Main {
             //out.println( data );
             out.println( arffOutput );
         }
-
-
 
     }
 

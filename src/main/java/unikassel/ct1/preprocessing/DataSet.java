@@ -82,6 +82,14 @@ public class DataSet implements Iterable<Sample> {
         return headers;
     }
 
+    public int getSampleCount() {
+        return this.samples.size();
+    }
+
+    public void addSample(int index, Sample sample) {
+        this.samples.add(index, sample);
+    }
+
     @Override
     public Iterator<Sample> iterator() {
         return this.samples.iterator();
@@ -108,5 +116,9 @@ public class DataSet implements Iterable<Sample> {
 
     public String getTimestampHeader() {
         return timestampHeader;
+    }
+
+    public String getLabelHeader() {
+        return labelHeader;
     }
 }
