@@ -85,7 +85,6 @@ public class Main {
 
     }
 
-
     /**
      * generate the .arff-File and save it under the first section in the project (the same section as src)
 
