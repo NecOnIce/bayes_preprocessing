@@ -9,11 +9,7 @@ import weka.core.Instance;
 import weka.core.Instances;
 import weka.core.converters.ArffSaver;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 
 /**
  * @author Jonas Scherbaum
@@ -183,6 +179,7 @@ public class Main {
         }
         return String.valueOf(data);
 
+        /*
         //System.out.println(data);
 
         ArffSaver saver = new ArffSaver();
@@ -195,5 +192,6 @@ public class Main {
            e.printStackTrace();
        }
         //########################################################################
+        */
     }
 }
