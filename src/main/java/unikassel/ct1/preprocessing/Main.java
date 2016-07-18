@@ -9,8 +9,11 @@ import weka.core.Instance;
 import weka.core.Instances;
 import weka.core.converters.ArffSaver;
 
-import java.io.*;
-import java.util.stream.Collectors;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * @author Jonas Scherbaum
@@ -62,6 +65,7 @@ public class Main {
         LOG.info("The freuqency is: " + frequency);
 
 
+        //Franck determine frequency
 
 
 
@@ -179,20 +183,17 @@ public class Main {
         }
         return String.valueOf(data);
 
+        //System.out.println(data);
 
-        /*
-        //=======================NEW: build an bayes-model
-
-        //create an empty trainingSet, which have the structure like the .arff-File
-        Instances trainningSet = new Instances("TestTrainninSet",atts1,50);
-
-        //define, which attribute is the class-attribute --> the label-attribute
-        trainningSet.setClassIndex(1);
-
-        //create instances for the trainningSet (for Test: only one)
-        Instance iExample = new
-        */
-
+        ArffSaver saver = new ArffSaver();
+        saver.setInstances(data);
+        try {
+           saver.setFile(new File("./output.arff"));
+           saver.writeBatch();
+       } catch (IOException e) {
+           // TODO Auto-generated catch block
+           e.printStackTrace();
+       }
+        //########################################################################
     }
-
 }
