@@ -3,11 +3,14 @@ package unikassel.ct1.preprocessing;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import weka.classifiers.Evaluation;
 import weka.core.Attribute;
 import weka.core.FastVector;
 import weka.core.Instance;
 import weka.core.Instances;
 import weka.core.converters.ArffSaver;
+import weka.classifiers.bayes.NaiveBayes;
+import weka.classifiers.evaluation.*;
 
 import java.io.*;
 import java.nio.charset.Charset;
@@ -15,6 +18,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Random;
 
 /**
  * @author Jonas Scherbaum
@@ -81,21 +85,23 @@ public class Main {
         writer.close();
 
 
-        //Franck determine frequency
-        String arffOutput;
+        //For the next step, we dont write an .arff-File, we work with them
+        //About of that, the generateArffFile()-Method dont return a value
+
+        //String arffOutput;
 
         //generate the .arff-File about the dataSet
-        arffOutput = generateArffFile(dataSet);
-        //generateArffFile(dataSet);
+        //arffOutput = generateArffFile(dataSet);
+        generateArffFile(dataSet);
 
 
         //Write to an file
-
+        /*
         try(  PrintWriter out = new PrintWriter( "./output.arff" )  ){
             //out.println( data );
             out.println( arffOutput );
         }
-
+        */
     }
 
 
@@ -105,7 +111,7 @@ public class Main {
      * @param dataSet, that have all the data
      * @return data Instance as String
      */
-    private static String generateArffFile(DataSet dataSet){
+    private static void generateArffFile(DataSet dataSet) {
         //----configure the Attributes
         //generate an Vector
 
@@ -123,6 +129,7 @@ public class Main {
 
             //We want to classify on label. The class-attribute in weka is a nominal-type-attribute
             if(s.equals("label")){
+
                 //atts1.addElement(new Attribute(s,(FastVector)null));
 
                 //for nominals: we write every possible data in an vector and then these to the ats1-vector
@@ -138,6 +145,7 @@ public class Main {
             }
 
         }
+
 
         //======================end of configure the Attributes
 
@@ -166,6 +174,7 @@ public class Main {
                 //Label
                 else if(sa.getAttribute(j) instanceof unikassel.ct1.preprocessing.Attribute.LabelAttribute){
                     //vals[j] = data.attribute(j).addStringValue( sa.getAttribute(j).getValue().toString() );
+
                     vals[j] = atts2.indexOf(sa.getAttribute(j).getValue());
                 }
                 //Double
@@ -189,22 +198,43 @@ public class Main {
 
             //write the values to data instance
             data.add(new Instance(1.0,vals));
+
+            //We set the class-attribute: we classify as label. It is the second one
+            data.setClassIndex(1);
         }
-        return String.valueOf(data);
+        //return String.valueOf(data);
 
-        /*
-        //System.out.println(data);
+        buildAnNaiveBayesModelAndEvaluate();
 
-        ArffSaver saver = new ArffSaver();
-        saver.setInstances(data);
+    }
+
+    private static void buildAnNaiveBayesModelAndEvaluate(){
+        //build an naiv bayes model
+        NaiveBayes nb = new NaiveBayes();
+
         try {
-           saver.setFile(new File("./output.arff"));
-           saver.writeBatch();
-       } catch (IOException e) {
-           // TODO Auto-generated catch block
-           e.printStackTrace();
-       }
-        //########################################################################
-        */
+            //nb.setOptions(options);
+
+            nb.buildClassifier(data);
+
+
+            //make a 10 fold cross validation
+            Evaluation eval = new Evaluation(data);
+            eval.crossValidateModel(nb,data,10,new Random(1));
+
+
+            //make the output of the evaluation
+
+            //standard values of evaluation
+            System.out.println(eval.toSummaryString(false));
+
+            //confusion matrix
+            System.out.println(eval.toMatrixString());
+
+
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
