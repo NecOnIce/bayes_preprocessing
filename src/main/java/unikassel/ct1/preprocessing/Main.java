@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import weka.classifiers.Evaluation;
+import weka.classifiers.bayes.BayesNet;
 import weka.core.Attribute;
 import weka.core.FastVector;
 import weka.core.Instance;
@@ -11,6 +12,8 @@ import weka.core.Instances;
 import weka.core.converters.ArffSaver;
 import weka.classifiers.bayes.NaiveBayes;
 import weka.classifiers.evaluation.*;
+import weka.filters.Filter;
+import weka.filters.unsupervised.attribute.Remove;
 
 import java.io.*;
 import java.nio.charset.Charset;
@@ -34,9 +37,14 @@ public class Main {
 
     private static final Logger LOG = LoggerFactory.getLogger(Main.class);
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws Exception {
 
-        InputStream in = new FileInputStream("./src/main/resources/source/p-5_2015-01-08_10-18-57_0_formatted.csv");
+        //Different Persons
+        String p1 = "p-3_2015-01-07_10-07-02_0_formatted.csv";
+        String p2 = "p-4_2015-01-08_18-25-58_0_formatted.csv";
+        String p3 = "p-5_2015-01-08_10-18-57_0_formatted.csv";
+
+        InputStream in = new FileInputStream("./src/main/resources/source/"+p2);
         String timestampHeader = "Timestamp";
         String labelHeader = "label";
 
@@ -88,7 +96,7 @@ public class Main {
         //For the next step, we dont write an .arff-File, we work with them
         //About of that, the generateArffFile()-Method dont return a value
 
-        //String arffOutput;
+        String arffOutput;
 
         //generate the .arff-File about the dataSet
         //arffOutput = generateArffFile(dataSet);
@@ -97,7 +105,7 @@ public class Main {
 
         //Write to an file
         /*
-        try(  PrintWriter out = new PrintWriter( "./output.arff" )  ){
+        try(  PrintWriter out = new PrintWriter( "./Arff-Data/Original_P3.arff" )  ){
             //out.println( data );
             out.println( arffOutput );
         }
@@ -111,7 +119,7 @@ public class Main {
      * @param dataSet, that have all the data
      * @return data Instance as String
      */
-    private static void generateArffFile(DataSet dataSet) {
+    private static void generateArffFile(DataSet dataSet) throws Exception {
         //----configure the Attributes
         //generate an Vector
 
@@ -202,13 +210,56 @@ public class Main {
             //We set the class-attribute: we classify as label. It is the second one
             data.setClassIndex(1);
         }
-        //return String.valueOf(data);
 
-        buildAnNaiveBayesModelAndEvaluate();
+        //Instances withoutTimestamp = removeTimeStampAsAttribute(data);
+        Instances newData = removeAllAttrOnlyNotAccAndGyro(data);
+
+        //return String.valueOf(newData);
+
+
+        //buildAnNaiveBayesModelAndEvaluate(newData);
+        buildAnBayesNetAndEvaluate(newData);
 
     }
 
-    private static void buildAnNaiveBayesModelAndEvaluate(){
+    /**
+     * Remove the timestamp as attribute
+     * @param data - the instances on base of the original data, with timestamp as attribute
+     * @return newData - the instances without a timestamp
+     * @throws Exception
+     */
+    private static Instances removeTimeStampAsAttribute(Instances data) throws Exception {
+        Remove remove = new Remove();
+
+        remove.setAttributeIndices("first");
+        remove.setInputFormat(data);
+
+        Instances newData = Filter.useFilter(data,remove);
+
+        return newData;
+    }
+
+    /**
+     * Remove all attributes except accelerometer, gyroscope and label
+     * @param data - Instances with ALL ATTRIBUTES
+     * @return newData - Instances, only with accelerometer, gyroscope and label as attributes
+     * @throws Exception
+     */
+    private static Instances removeAllAttrOnlyNotAccAndGyro(Instances data) throws Exception {
+        Instances dataWithoutTimeStamp = removeTimeStampAsAttribute(data);
+
+        Remove remove = new Remove();
+
+        remove.setAttributeIndices("first-7");
+        remove.setInvertSelection(true);
+        remove.setInputFormat(dataWithoutTimeStamp);
+
+        Instances newData = Filter.useFilter(dataWithoutTimeStamp,remove);
+
+        return newData;
+    }
+
+    private static void buildAnNaiveBayesModelAndEvaluate(Instances data){
         //build an naiv bayes model
         NaiveBayes nb = new NaiveBayes();
 
@@ -236,5 +287,27 @@ public class Main {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private static void buildAnBayesNetAndEvaluate(Instances data) throws Exception {
+        BayesNet net = new BayesNet();
+
+        String options_Se_MDL_K2[] = weka.core.Utils.splitOptions("-D -Q weka.classifiers.bayes.net.search.local.K2 -- -P 1 -N -S MDL -E weka.classifiers.bayes.net.estimate.SimpleEstimator -- -A 0.5");
+        String options_Se_MDL_Hc[] = weka.core.Utils.splitOptions("-D -Q weka.classifiers.bayes.net.search.local.HillClimber -- -N -P 1 -S MDL -E weka.classifiers.bayes.net.estimate.SimpleEstimator -- -A 0.5");
+
+        net.setOptions(options_Se_MDL_K2);
+
+        net.buildClassifier(data);
+
+        Evaluation eval = new Evaluation(data);
+        eval.crossValidateModel(net,data,10,new Random(1));
+
+        System.out.println(eval.toSummaryString(false));
+
+        //confusion matrix
+        System.out.println(eval.toMatrixString());
+
+
+
     }
 }
