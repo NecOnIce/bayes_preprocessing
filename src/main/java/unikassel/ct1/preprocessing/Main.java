@@ -111,13 +111,6 @@ public class Main {
         //When we write all .arff-files, we can use only the Instances of the Method. For these, we return only the
         //Instances and writes the result to Instance-variable. With these data, we can call the Methods to build the Models.
 
-        //DONT FORGET: We are using a Filter to remove some attributes in the data. At the end of the Method generateArffFile()
-        //we say with the second parameter of the Filter-Method, is the actual data original or preprocessed data.
-        //Dont forget to edit these variable for calculating the models, when you are switching from original
-        //to preprocessed data or vice versa.
-
-
-
         //Begin======================================================================================================
         String arffOutput;
 
@@ -137,8 +130,11 @@ public class Main {
 
         //Building the Models
 
+        //Original data, befor Preprocessing
         Instances dataForModels=generateArffFile(dataSet,true);
-        //Instances dataForModels=generateArffFile(featureDataSet,true);
+
+        //Preprocessed data, after the Preprocessing
+        //Instances dataForModels=generateArffFile(featureDataSet,false);
 
         //buildAnNaiveBayesModelAndEvaluate(dataForModels);
 
@@ -149,7 +145,7 @@ public class Main {
          *      1: Not initial as Bayes Network, local K2-Algorithm, MDL as score function and simple estimator
          *      2: Not initial as Bayes Network, local Hill-Climbing-Algorithm, MDL as score function and simple estimator
          */
-        buildAnBayesNetAndEvaluate(dataForModels,1);
+        buildAnBayesNetAndEvaluate(dataForModels,2);
 
 
 
@@ -263,7 +259,7 @@ public class Main {
         //true: is original-data
         //false: is preprocessed-data
 
-        Instances newData = removeAllAttrOnlyNotAccAndGyro(data,false);
+        Instances newData = removeAllAttrOnlyNotAccAndGyro(data,isOriginalData);
 
         //return String.valueOf(newData);
         return newData;
