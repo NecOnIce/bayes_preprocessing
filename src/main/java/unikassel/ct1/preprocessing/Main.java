@@ -38,20 +38,30 @@ public class Main {
     private static final Logger LOG = LoggerFactory.getLogger(Main.class);
 
     public static void main(String[] args) throws Exception {
+        //For the first: Build datasets about the .csv-data
+        //Beginn======================================================================================================
 
         //Different Persons
         String p1 = "p-3_2015-01-07_10-07-02_0_formatted.csv";
         String p2 = "p-4_2015-01-08_18-25-58_0_formatted.csv";
         String p3 = "p-5_2015-01-08_10-18-57_0_formatted.csv";
 
-        InputStream in = new FileInputStream("./src/main/resources/source/"+p2);
+        //Here, yo can set the data of the individual persons
+        InputStream in = new FileInputStream("./src/main/resources/source/"+p1);
         String timestampHeader = "Timestamp";
         String labelHeader = "label";
 
         CT1CSVReader reader = new CT1CSVReader(in, timestampHeader, labelHeader);
         DataSet dataSet = reader.read();
 
-        PreProcessor preProcessor = new PreProcessor(dataSet, 0.25f, 1.0f);
+
+
+        //Configure the Preprocessor:
+        //first parameter: the used dataset, on which the feature are calculated
+        //second parameter: Overlapping of sliding window
+        //third parameter: Window size of sliding window
+
+        PreProcessor preProcessor = new PreProcessor(dataSet, 0.5f, 2.0f);
         preProcessor.preprocess();
         DataSet featureDataSet = preProcessor.getFeatureDataSet();
 
@@ -91,35 +101,72 @@ public class Main {
 
         writer.flush();
         writer.close();
+        //End========================================================================================================
 
 
-        //For the next step, we dont write an .arff-File, we work with them
-        //About of that, the generateArffFile()-Method dont return a value
+        //Now:
+        //In Method generateArffFile() we are convert the dataset to Weka-format. For building the .arff-files we are
+        //edit the return parameter to String and return the String-value of the Instances. After that we write the return-value
+        //in a String and write these to a File.
+        //When we write all .arff-files, we can use only the Instances of the Method. For these, we return only the
+        //Instances and writes the result to Instance-variable. With these data, we can call the Methods to build the Models.
 
+        //DONT FORGET: We are using a Filter to remove some attributes in the data. At the end of the Method generateArffFile()
+        //we say with the second parameter of the Filter-Method, is the actual data original or preprocessed data.
+        //Dont forget to edit these variable for calculating the models, when you are switching from original
+        //to preprocessed data or vice versa.
+
+
+
+        //Begin======================================================================================================
         String arffOutput;
 
         //generate the .arff-File about the dataSet
-        //arffOutput = generateArffFile(dataSet);
-        generateArffFile(dataSet);
 
+        //arffOutput = generateArffFile(dataSet);
+        //arffOutput = generateArffFile(featureDataSet);
+        //generateArffFile(featureDataSet);
 
         //Write to an file
         /*
-        try(  PrintWriter out = new PrintWriter( "./Arff-Data/Original_P3.arff" )  ){
+        try(  PrintWriter out = new PrintWriter( "./Arff-Data/Preprocessed_WS2_50%OL_P3.arff" )  ){
             //out.println( data );
             out.println( arffOutput );
         }
         */
+
+        //Building the Models
+
+        Instances dataForModels=generateArffFile(dataSet,true);
+        //Instances dataForModels=generateArffFile(featureDataSet,true);
+
+        //buildAnNaiveBayesModelAndEvaluate(dataForModels);
+
+        /**
+         * buildAnBayesNetAndEvaluate()
+         * First parameter: data for the model.
+         * Second parameter: individual options for the Bayes-Net
+         *      1: Not initial as Bayes Network, local K2-Algorithm, MDL as score function and simple estimator
+         *      2: Not initial as Bayes Network, local Hill-Climbing-Algorithm, MDL as score function and simple estimator
+         */
+        buildAnBayesNetAndEvaluate(dataForModels,1);
+
+
+
+        //End========================================================================================================
     }
 
-
     /**
-     * generate the .arff-File and save it under the first section in the project (the same section as src)
-
-     * @param dataSet, that have all the data
-     * @return data Instance as String
+     * Convert the dataset-format in the WEKA-Format. For the first, we use this to write the arff-files, then, we are
+     * use the instances-format for building the models
+     * @param dataSet - the data to convert
+     * @param isOriginalData - if true, the data is NOT preprocessed, if false, the data is preprocessed (important for
+     *                       the used Filter, at the End of the Method)
+     * @return Instances - the converted data, in the WEKA-format for the models
+     * @throws Exception
      */
-    private static void generateArffFile(DataSet dataSet) throws Exception {
+
+    private static Instances generateArffFile(DataSet dataSet, Boolean isOriginalData) throws Exception {
         //----configure the Attributes
         //generate an Vector
 
@@ -211,14 +258,19 @@ public class Main {
             data.setClassIndex(1);
         }
 
-        //Instances withoutTimestamp = removeTimeStampAsAttribute(data);
-        Instances newData = removeAllAttrOnlyNotAccAndGyro(data);
+        //Use a Filter
+        //With the second parameter we define, is the actual data original or preprocessed data
+        //true: is original-data
+        //false: is preprocessed-data
+
+        Instances newData = removeAllAttrOnlyNotAccAndGyro(data,false);
 
         //return String.valueOf(newData);
+        return newData;
 
 
         //buildAnNaiveBayesModelAndEvaluate(newData);
-        buildAnBayesNetAndEvaluate(newData);
+        //buildAnBayesNetAndEvaluate(newData);
 
     }
 
@@ -245,13 +297,27 @@ public class Main {
      * @return newData - Instances, only with accelerometer, gyroscope and label as attributes
      * @throws Exception
      */
-    private static Instances removeAllAttrOnlyNotAccAndGyro(Instances data) throws Exception {
+    private static Instances removeAllAttrOnlyNotAccAndGyro(Instances data, Boolean isOriginalData) throws Exception {
+
+        //We are removing the timestamp of the data
         Instances dataWithoutTimeStamp = removeTimeStampAsAttribute(data);
 
         Remove remove = new Remove();
 
-        remove.setAttributeIndices("first-7");
-        remove.setInvertSelection(true);
+
+        //After the Preprocessing (isOriginalData == false) we have more Attributes, like Acc_x_Mean, Acc_x_Variance,...
+        //In these case, we must remove more Attributes, because we want only Accelerometer and Gyroscope
+        if(isOriginalData){
+            System.out.println("Original-data");
+            remove.setAttributeIndices("first-7");
+            remove.setInvertSelection(true);
+        }
+        else {
+            System.out.println("Preprocessed-data");
+            remove.setAttributeIndices("first-19");
+            remove.setInvertSelection(true);
+        }
+
         remove.setInputFormat(dataWithoutTimeStamp);
 
         Instances newData = Filter.useFilter(dataWithoutTimeStamp,remove);
@@ -259,6 +325,10 @@ public class Main {
         return newData;
     }
 
+    /**
+     * Build an naive Bayes Model and evaluate with 10-fold cross validation
+     * @param data - the data to build the model
+     */
     private static void buildAnNaiveBayesModelAndEvaluate(Instances data){
         //build an naiv bayes model
         NaiveBayes nb = new NaiveBayes();
@@ -267,6 +337,7 @@ public class Main {
             //nb.setOptions(options);
 
             nb.buildClassifier(data);
+            System.out.println("Using Naive Bayes");
 
 
             //make a 10 fold cross validation
@@ -289,19 +360,41 @@ public class Main {
         }
     }
 
-    private static void buildAnBayesNetAndEvaluate(Instances data) throws Exception {
+    /**
+     * Build an Bayes Net and evaluate with 10-fold cross validation
+     * @param data - the data to build the model
+     * @throws Exception
+     */
+    private static void buildAnBayesNetAndEvaluate(Instances data,int optionsOfBayesNet) throws Exception {
         BayesNet net = new BayesNet();
+
+        //Define the options for the bayes net
+        //options_Se_MDL_K2: Not initial as Bayes Network, local K2-Algorithm, MDL as score function and simple estimator
+        //Options_Se_MDL_HC: Not initial as Bayes Network, local Hill-Climbing-Algorithm, MDL as score function
+        // and simple estimator
 
         String options_Se_MDL_K2[] = weka.core.Utils.splitOptions("-D -Q weka.classifiers.bayes.net.search.local.K2 -- -P 1 -N -S MDL -E weka.classifiers.bayes.net.estimate.SimpleEstimator -- -A 0.5");
         String options_Se_MDL_Hc[] = weka.core.Utils.splitOptions("-D -Q weka.classifiers.bayes.net.search.local.HillClimber -- -N -P 1 -S MDL -E weka.classifiers.bayes.net.estimate.SimpleEstimator -- -A 0.5");
 
-        net.setOptions(options_Se_MDL_K2);
+        if(optionsOfBayesNet == 1){
+            net.setOptions(options_Se_MDL_K2);
+            System.out.println("Using Bayes-Net with K2");
+        }
+        else if(optionsOfBayesNet == 2){
+            net.setOptions(options_Se_MDL_Hc);
+            System.out.println("Using Bayes-Net with Hill-Climbing");
+        }
+
 
         net.buildClassifier(data);
 
+        //make a 10 fold cross validation
         Evaluation eval = new Evaluation(data);
         eval.crossValidateModel(net,data,10,new Random(1));
 
+        //make the output of the evaluation
+
+        //standard values of evaluation
         System.out.println(eval.toSummaryString(false));
 
         //confusion matrix
